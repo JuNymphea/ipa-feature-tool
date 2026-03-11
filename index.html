@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phonological Feature Tool</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;background:#f0f2f5;color:#1a1a2e;min-height:100vh}
+.ipa{font-family:'Doulos SIL','Noto Sans','Arial Unicode MS',serif}
+
+/* Header */
+.header{background:linear-gradient(135deg,#1a1a2e,#16213e);color:white;padding:1.5rem 2rem;text-align:center}
+.header h1{font-size:1.8rem;font-weight:700;letter-spacing:-0.02em}
+.header p{color:#94a3b8;margin-top:.25rem;font-size:.9rem}
+
+/* Tabs */
+.tabs{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 2rem;gap:.5rem}
+.tab-btn{padding:.85rem 1.5rem;border:none;background:none;cursor:pointer;font-size:.95rem;font-weight:500;color:#64748b;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s}
+.tab-btn.active{color:#2563eb;border-bottom-color:#2563eb}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.container{max-width:1200px;margin:0 auto;padding:2rem;display:flex;flex-direction:column;gap:1.5rem}
+
+/* Card */
+.card{background:white;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.1);padding:1.5rem}
+.card-title{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:1rem}
+
+/* IPA Keyboard */
+.manner-row{display:flex;align-items:flex-start;gap:.5rem;margin-bottom:.4rem}
+.manner-label{font-size:.72rem;color:#64748b;min-width:110px;padding-top:.4rem;font-weight:600;flex-shrink:0}
+.ipa-group{display:flex;flex-wrap:wrap;gap:.25rem}
+.ipa-btn{min-width:2.2rem;height:2.2rem;border:1.5px solid #e2e8f0;border-radius:6px;background:white;cursor:pointer;font-size:1.1rem;color:#1a1a2e;display:flex;align-items:center;justify-content:center;transition:all .15s;padding:0 .3rem;line-height:1}
+.ipa-btn:hover{border-color:#2563eb;background:#eff6ff;color:#2563eb}
+.ipa-btn.selected{border-color:#2563eb;background:#2563eb;color:white}
+.pair-gap{width:.4rem;display:inline-block}
+
+/* Chips */
+.chips-area{display:flex;flex-wrap:wrap;gap:.5rem;min-height:2.5rem;align-items:center;padding:.5rem;background:#f8fafc;border-radius:8px;border:1.5px dashed #e2e8f0}
+.chip{display:flex;align-items:center;gap:.3rem;padding:.3rem .65rem;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:20px;font-size:1.1rem;color:#1e40af}
+.chip-x{cursor:pointer;font-size:.75rem;color:#93c5fd;font-family:sans-serif;font-weight:700;line-height:1;margin-left:.1rem}
+.chip-x:hover{color:#2563eb}
+.chips-empty{color:#94a3b8;font-size:.85rem;font-style:italic}
+
+/* Buttons */
+.btn-row{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap}
+.btn-primary{padding:.6rem 1.4rem;background:#2563eb;color:white;border:none;border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600;transition:background .2s}
+.btn-primary:hover{background:#1d4ed8}
+.btn-primary:disabled{background:#94a3b8;cursor:not-allowed}
+.btn-secondary{padding:.6rem 1.4rem;background:#f1f5f9;color:#475569;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600;transition:all .2s}
+.btn-secondary:hover{background:#e2e8f0}
+
+/* Feature table (Tab 1 output) */
+.table-wrap{overflow-x:auto;border-radius:8px;border:1px solid #e2e8f0}
+table.ftable{width:100%;border-collapse:collapse;font-size:.82rem}
+.ftable th{padding:.45rem .75rem;text-align:center;background:#f8fafc;border-bottom:2px solid #e2e8f0;font-weight:600;color:#475569;white-space:nowrap;position:sticky;top:0}
+.ftable th:first-child{text-align:left;min-width:140px}
+.ftable td{padding:.35rem .75rem;border-bottom:1px solid #f1f5f9;text-align:center;vertical-align:middle}
+.ftable td:first-child{text-align:left;font-size:.78rem;font-weight:500;color:#475569;white-space:nowrap}
+.ftable tr:last-child td{border-bottom:none}
+.ftable tr.group-row td{background:#f1f5f9;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;padding:.28rem .75rem}
+.ftable tr:hover:not(.group-row) td{background:#f8fafc}
+
+/* Feature value badges */
+.fv{display:inline-flex;align-items:center;justify-content:center;width:1.8rem;height:1.5rem;border-radius:4px;font-weight:700;font-size:.85rem;font-family:monospace}
+.fv-plus{background:#dcfce7;color:#166534}
+.fv-minus{background:#fee2e2;color:#991b1b}
+.fv-na{background:#f1f5f9;color:#cbd5e1;font-size:.65rem;font-weight:400}
+/* Summary column */
+.fv-shared-plus{background:#16a34a;color:white}
+.fv-shared-minus{background:#dc2626;color:white}
+.fv-variable{background:#f59e0b;color:white;font-size:.7rem;font-weight:600}
+.fv-all-na{background:#e2e8f0;color:#94a3b8;font-size:.65rem}
+
+.sym-th{font-size:1.2rem;font-weight:400;color:#1a1a2e}
+.sum-th{font-size:.75rem;color:#64748b;font-weight:700}
+
+/* Legend */
+.legend{display:flex;gap:1rem;flex-wrap:wrap;font-size:.78rem;color:#64748b;padding:.6rem .75rem;background:#f8fafc;border-radius:8px;align-items:center}
+.li{display:flex;align-items:center;gap:.35rem}
+.ld{width:.75rem;height:.75rem;border-radius:3px}
+
+/* Tab 2 feature toggles */
+.fgroup-section{margin-bottom:1.25rem}
+.fgroup-label{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:.5rem;padding-bottom:.35rem;border-bottom:1px solid #e2e8f0}
+.feature-grid{display:flex;flex-direction:column;gap:.35rem}
+.feature-row{display:flex;align-items:center;gap:.5rem;padding:.3rem .5rem;border-radius:6px;transition:background .15s}
+.feature-row:hover{background:#f8fafc}
+.feature-name{flex:1;font-size:.85rem;font-weight:500;color:#374151;cursor:default}
+.toggle-group{display:flex;border-radius:6px;overflow:hidden;border:1.5px solid #e2e8f0}
+.tg-btn{width:1.8rem;height:1.6rem;border:none;cursor:pointer;font-size:.8rem;font-weight:700;background:#f8fafc;color:#94a3b8;transition:all .15s;line-height:1}
+.tg-btn:not(:last-child){border-right:1px solid #e2e8f0}
+.tg-btn:hover{background:#e2e8f0;color:#475569}
+.tg-btn.on-plus{background:#16a34a;color:white;border-color:#16a34a}
+.tg-btn.on-minus{background:#dc2626;color:white;border-color:#dc2626}
+
+/* Results (Tab 2) */
+.results-wrap{display:flex;flex-wrap:wrap;gap:.6rem;min-height:3rem;align-items:flex-start;padding-top:.5rem}
+.rsym{display:flex;flex-direction:column;align-items:center;padding:.5rem .65rem;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;transition:all .15s;min-width:3rem}
+.rsym:hover{border-color:#2563eb;background:#eff6ff}
+.rsym .s{font-size:1.5rem;line-height:1;margin-bottom:.2rem}
+.rsym .d{font-size:.6rem;color:#94a3b8;text-align:center;max-width:5rem;line-height:1.3}
+.no-results{color:#94a3b8;font-style:italic;font-size:.9rem;padding:.75rem 0}
+
+.count-badge{display:inline-flex;align-items:center;justify-content:center;background:#eff6ff;color:#2563eb;border-radius:12px;padding:.15rem .6rem;font-size:.78rem;font-weight:600;margin-left:.5rem}
+
+.vowel-note{font-size:.75rem;color:#94a3b8;font-style:italic;margin-top:.5rem}
+
+/* Vowel chart table */
+.vowel-chart-table{border-collapse:collapse;font-size:.85rem;margin-bottom:.25rem}
+.vowel-chart-table th,.vowel-chart-table td{padding:.2rem .3rem}
+.vrow-head{font-size:.72rem;color:#64748b;font-weight:600;padding-right:.6rem!important;white-space:nowrap;text-align:right}
+.vcol-head{font-size:.72rem;color:#64748b;font-weight:700;text-align:center;padding-bottom:.3rem}
+.vcell{text-align:center;min-width:2.4rem}
+.vcell-rnd{border-left:1px dotted #e2e8f0}
+.vcell-unrd{border-left:1px solid #e2e8f0}
+.vcell:first-of-type{border-left:none}
+
+/* Necessary / redundant feature rows */
+.feat-necessary{background:rgba(245,158,11,0.06)}
+.feat-necessary td:first-child{font-weight:600}
+.feat-redundant td{opacity:.55}
+.feat-star{color:#d97706;font-size:.85rem;margin-right:.1rem}
+.feat-dot{color:#94a3b8;font-size:.85rem;margin-right:.1rem}
+.fv-needed{background:#d97706;color:white;font-size:.85rem}
+.fv-redundant{background:#e2e8f0;color:#94a3b8;font-size:.75rem}
+
+/* Two-column layout for Tab 2 */
+.two-col{display:grid;grid-template-columns:280px 1fr;gap:1.5rem;align-items:start}
+@media(max-width:700px){.two-col{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Phonological Feature Tool</h1>
+  <p>IPA ↔ Features · Based on the IPA chart (2015) and feature tables</p>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab(0)">IPA → Features</button>
+  <button class="tab-btn" onclick="switchTab(1)">Features → IPA</button>
+</div>
+
+<!-- ============ TAB 1: IPA → Features ============ -->
+<div class="tab-content active" id="tab0">
+<div class="container">
+
+  <div class="card">
+    <div class="card-title">Select IPA Symbols</div>
+
+    <!-- Consonants keyboard -->
+    <div style="margin-bottom:.75rem">
+      <div style="font-size:.78rem;font-weight:600;color:#64748b;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.05em">Consonants (Pulmonic)</div>
+      <div id="consonant-keyboard"></div>
+    </div>
+
+    <!-- Vowels keyboard -->
+    <div>
+      <div style="font-size:.78rem;font-weight:600;color:#64748b;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.05em">Vowels</div>
+      <div id="vowel-keyboard"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Selected Symbols</div>
+    <div class="chips-area" id="chips">
+      <span class="chips-empty">Click symbols above to select them</span>
+    </div>
+    <div class="btn-row" style="margin-top:1rem">
+      <button class="btn-primary" onclick="analyze()" id="analyze-btn" disabled>Analyze Features</button>
+      <button class="btn-secondary" onclick="clearAll()">Clear All</button>
+    </div>
+  </div>
+
+  <div class="card" id="results-card" style="display:none">
+    <div class="card-title">Feature Analysis</div>
+    <div id="results-warning" style="display:none;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:.6rem .9rem;font-size:.82rem;color:#92400e;margin-bottom:1rem"></div>
+    <div class="legend" style="margin-bottom:1rem">
+      <div class="li"><div class="ld" style="background:#16a34a"></div>Shared +</div>
+      <div class="li"><div class="ld" style="background:#dc2626"></div>Shared −</div>
+      <div class="li"><div class="ld" style="background:#dcfce7;border:1px solid #bbf7d0"></div>Individual +</div>
+      <div class="li"><div class="ld" style="background:#fee2e2;border:1px solid #fecaca"></div>Individual −</div>
+      <div class="li"><span style="color:#d97706;font-size:1rem">★</span>&nbsp;Minimal (necessary)</div>
+      <div class="li"><span style="color:#94a3b8">○</span>&nbsp;Redundant</div>
+      <div class="li" style="font-style:italic;color:#94a3b8">blank = not specified in chart</div>
+    </div>
+    <div class="table-wrap">
+      <table class="ftable" id="feature-table"></table>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ============ TAB 2: Features → IPA ============ -->
+<div class="tab-content" id="tab1">
+<div class="container">
+  <div class="two-col">
+
+    <div class="card" style="position:sticky;top:1rem">
+      <div class="card-title">Select Features</div>
+      <div id="feature-selector"></div>
+      <div class="btn-row" style="margin-top:1rem">
+        <button class="btn-primary" onclick="searchIPA()">Find Matching IPA</button>
+        <button class="btn-secondary" onclick="resetFeatures()">Reset</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        Matching IPA Symbols
+        <span class="count-badge" id="result-count">0</span>
+      </div>
+      <div class="results-wrap" id="ipa-results">
+        <span class="no-results">Set features and click "Find Matching IPA"</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+
+const FEATURE_GROUPS = [
+  { name: 'Major Class', features: ['syllabic','consonantal','sonorant','continuant','nasal','lateral','delayed_release'] },
+  { name: 'Laryngeal', features: ['voice','spread_glottis','constricted_glottis'] },
+  { name: 'Place', features: ['labial','coronal','dorsal','pharyngeal_place','glottal_place'] },
+  { name: 'Coronal Sub-features', features: ['anterior','distributed'] },
+  { name: 'Manner / Acoustics', features: ['strident'] },
+  { name: 'Dorsal / Vowel', features: ['high','low','back'] },
+  { name: 'Vowel', features: ['ATR','round'] },
+];
+
+const FEATURE_LABELS = {
+  syllabic:'syllabic', consonantal:'consonantal', sonorant:'sonorant',
+  continuant:'continuant', nasal:'nasal', lateral:'lateral',
+  delayed_release:'delayed release', voice:'voice',
+  spread_glottis:'spread glottis', constricted_glottis:'constricted glottis',
+  labial:'labial', coronal:'coronal', dorsal:'dorsal',
+  pharyngeal_place:'pharyngeal', glottal_place:'glottal',
+  anterior:'anterior', distributed:'distributed', strident:'strident',
+  high:'high', low:'low', back:'back', ATR:'ATR', round:'round'
+};
+
+const ALL_FEATURES = FEATURE_GROUPS.flatMap(g => g.features);
+
+// Place feature templates
+const PL = {
+  bilabial:    {labial:'+',coronal:'-',dorsal:'-',pharyngeal_place:'-',glottal_place:'-'},
+  labiodental: {labial:'+',coronal:'-',dorsal:'-',pharyngeal_place:'-',glottal_place:'-'},
+  dental:      {labial:'-',coronal:'+',dorsal:'-',pharyngeal_place:'-',glottal_place:'-',anterior:'+',distributed:'+'},
+  alveolar:    {labial:'-',coronal:'+',dorsal:'-',pharyngeal_place:'-',glottal_place:'-',anterior:'+',distributed:'-'},
+  postalveolar:{labial:'-',coronal:'+',dorsal:'-',pharyngeal_place:'-',glottal_place:'-',anterior:'-',distributed:'+'},
+  retroflex:   {labial:'-',coronal:'+',dorsal:'-',pharyngeal_place:'-',glottal_place:'-',anterior:'-',distributed:'-'},
+  palatal:     {labial:'-',coronal:'+',dorsal:'+',pharyngeal_place:'-',glottal_place:'-',anterior:'-',distributed:'+',high:'+',low:'-',back:'-'},
+  velar:       {labial:'-',coronal:'-',dorsal:'+',pharyngeal_place:'-',glottal_place:'-',high:'+',low:'-',back:'+'},
+  uvular:      {labial:'-',coronal:'-',dorsal:'+',pharyngeal_place:'-',glottal_place:'-',high:'-',low:'+',back:'+'},
+  pharyngeal:  {labial:'-',coronal:'-',dorsal:'-',pharyngeal_place:'+',glottal_place:'-',low:'+'},
+  glottal:     {labial:'-',coronal:'-',dorsal:'-',pharyngeal_place:'-',glottal_place:'+',low:'+'},
+};
+
+// Manner feature templates
+// nasal, lateral, delayed_release only marked when '+' per chart; others left unspecified (null)
+const MN = {
+  plosive:   {syllabic:'-',consonantal:'+',sonorant:'-',continuant:'-',strident:'-'},
+  nasal:     {syllabic:'-',consonantal:'+',sonorant:'+',continuant:'-',nasal:'+',strident:'-'},
+  trill:     {syllabic:'-',consonantal:'+',sonorant:'+',continuant:'-',strident:'-'},
+  tap:       {syllabic:'-',consonantal:'+',sonorant:'+',continuant:'-',strident:'-'},
+  fricative: {syllabic:'-',consonantal:'+',sonorant:'-',continuant:'+'},
+  lat_fric:  {syllabic:'-',consonantal:'+',sonorant:'-',continuant:'+',lateral:'+'},
+  approx:    {syllabic:'-',consonantal:'+',sonorant:'+',continuant:'+',strident:'-'},
+  lat_approx:{syllabic:'-',consonantal:'+',sonorant:'+',continuant:'+',lateral:'+',strident:'-'},
+  affricate: {syllabic:'-',consonantal:'+',sonorant:'-',continuant:'-',delayed_release:'+'},
+  glide:     {syllabic:'-',consonantal:'-',sonorant:'+',continuant:'+',strident:'-'},
+};
+
+// Strident by place (for fricatives/affricates)
+const STRID = {bilabial:'-',labiodental:'+',dental:'-',alveolar:'+',postalveolar:'+',retroflex:'-',palatal:'-',velar:'-',uvular:'+',pharyngeal:'-',glottal:'-'};
+
+function C(desc, manner, place, voiced, extra={}) {
+  const vf = {voice: voiced?'+':'-'};
+  let strid = {};
+  if (manner === 'fricative' || manner === 'lat_fric' || manner === 'affricate') {
+    strid = {strident: STRID[place]};
+  }
+  return {desc, type:'consonant', f: {...MN[manner], ...vf, ...PL[place], ...strid, ...extra}};
+}
+
+function V(desc, high, back, low, atr, round) {
+  return {desc, type:'vowel', f:{
+    syllabic:'+', consonantal:'-', sonorant:'+', continuant:'+',
+    voice:'+',
+    labial:'-', coronal:'-', dorsal:'+', pharyngeal_place:'-', glottal_place:'-',
+    high, low, back, ATR:atr, round
+  }};
+}
+
+const IPA = {
+  // === PLOSIVES ===
+  'p':  C('voiceless bilabial plosive','plosive','bilabial',false),
+  'b':  C('voiced bilabial plosive','plosive','bilabial',true),
+  't':  C('voiceless alveolar plosive','plosive','alveolar',false),
+  'd':  C('voiced alveolar plosive','plosive','alveolar',true),
+  'ʈ':  C('voiceless retroflex plosive','plosive','retroflex',false),
+  'ɖ':  C('voiced retroflex plosive','plosive','retroflex',true),
+  'c':  C('voiceless palatal plosive','plosive','palatal',false),
+  'ɟ':  C('voiced palatal plosive','plosive','palatal',true),
+  'k':  C('voiceless velar plosive','plosive','velar',false),
+  'ɡ':  C('voiced velar plosive','plosive','velar',true),
+  'q':  C('voiceless uvular plosive','plosive','uvular',false),
+  'ɢ':  C('voiced uvular plosive','plosive','uvular',true),
+  'ʔ':  C('glottal stop','plosive','glottal',false,{constricted_glottis:'+',low:'+'}),
+
+  // === NASALS ===
+  'm':  C('voiced bilabial nasal','nasal','bilabial',true),
+  'ɱ':  C('voiced labiodental nasal','nasal','labiodental',true),
+  'n':  C('voiced alveolar nasal','nasal','alveolar',true),
+  'ɳ':  C('voiced retroflex nasal','nasal','retroflex',true),
+  'ɲ':  C('voiced palatal nasal','nasal','palatal',true),
+  'ŋ':  C('voiced velar nasal','nasal','velar',true),
+  'ɴ':  C('voiced uvular nasal','nasal','uvular',true),
+
+  // === TRILLS ===
+  'ʙ':  C('voiced bilabial trill','trill','bilabial',true),
+  'r':  C('voiced alveolar trill','trill','alveolar',true),
+  'ʀ':  C('voiced uvular trill','trill','uvular',true),
+
+  // === TAPS/FLAPS ===
+  'ⱱ':  C('voiced labiodental flap','tap','labiodental',true),
+  'ɾ':  C('voiced alveolar tap','tap','alveolar',true),
+  'ɽ':  C('voiced retroflex flap','tap','retroflex',true),
+
+  // === FRICATIVES ===
+  'ɸ':  C('voiceless bilabial fricative','fricative','bilabial',false),
+  'β':  C('voiced bilabial fricative','fricative','bilabial',true),
+  'f':  C('voiceless labiodental fricative','fricative','labiodental',false),
+  'v':  C('voiced labiodental fricative','fricative','labiodental',true),
+  'θ':  C('voiceless dental fricative','fricative','dental',false),
+  'ð':  C('voiced dental fricative','fricative','dental',true),
+  's':  C('voiceless alveolar fricative','fricative','alveolar',false),
+  'z':  C('voiced alveolar fricative','fricative','alveolar',true),
+  'ʃ':  C('voiceless postalveolar fricative','fricative','postalveolar',false),
+  'ʒ':  C('voiced postalveolar fricative','fricative','postalveolar',true),
+  'ʂ':  C('voiceless retroflex fricative','fricative','retroflex',false),
+  'ʐ':  C('voiced retroflex fricative','fricative','retroflex',true),
+  'ç':  C('voiceless palatal fricative','fricative','palatal',false),
+  'ʝ':  C('voiced palatal fricative','fricative','palatal',true),
+  'x':  C('voiceless velar fricative','fricative','velar',false),
+  'ɣ':  C('voiced velar fricative','fricative','velar',true),
+  'χ':  C('voiceless uvular fricative','fricative','uvular',false),
+  'ʁ':  C('voiced uvular fricative','fricative','uvular',true),
+  'ħ':  C('voiceless pharyngeal fricative','fricative','pharyngeal',false),
+  'ʕ':  C('voiced pharyngeal fricative','fricative','pharyngeal',true),
+  'h':  C('voiceless glottal fricative','fricative','glottal',false),
+  'ɦ':  C('voiced glottal fricative','fricative','glottal',true),
+
+  // === LATERAL FRICATIVES ===
+  'ɬ':  C('voiceless alveolar lateral fricative','lat_fric','alveolar',false),
+  'ɮ':  C('voiced alveolar lateral fricative','lat_fric','alveolar',true),
+
+  // === APPROXIMANTS ===
+  'ʋ':  C('voiced labiodental approximant','approx','labiodental',true),
+  'ɹ':  C('voiced alveolar approximant','approx','alveolar',true),
+  'ɻ':  C('voiced retroflex approximant','approx','retroflex',true),
+  'j':  C('voiced palatal glide','glide','palatal',true),
+  'ɰ':  C('voiced velar approximant','approx','velar',true),
+  'w':  C('voiced labial-velar glide','glide','velar',true,{labial:'+',round:'+'}),
+
+  // === LATERAL APPROXIMANTS ===
+  'l':  C('voiced alveolar lateral approximant','lat_approx','alveolar',true),
+  'ɭ':  C('voiced retroflex lateral approximant','lat_approx','retroflex',true),
+  'ʎ':  C('voiced palatal lateral approximant','lat_approx','palatal',true),
+  'ʟ':  C('voiced velar lateral approximant','lat_approx','velar',true),
+
+  // === VOWELS === V(desc, high, low, back, atr, round) — wait, I defined V(desc,high,back,low,atr,round)
+  // V(desc, high, back, low, atr, round)
+  'i':  V('close front unrounded','+','-','-','+','-'),
+  'y':  V('close front rounded','+','-','-','+','+'),
+  'ɨ':  V('close central unrounded','+','+','-','-','-'),
+  'ʉ':  V('close central rounded','+','+','-','-','+'),
+  'ɯ':  V('close back unrounded','+','+','-','+','-'),
+  'u':  V('close back rounded','+','+','-','+','+'),
+  'ɪ':  V('near-close front unrounded','+','-','-','-','-'),
+  'ʏ':  V('near-close front rounded','+','-','-','-','+'),
+  'ʊ':  V('near-close back rounded','+','+','-','-','+'),
+  'e':  V('close-mid front unrounded','-','-','-','+','-'),
+  'ø':  V('close-mid front rounded','-','-','-','+','+'),
+  'ɤ':  V('close-mid back unrounded','-','+','-','+','-'),
+  'o':  V('close-mid back rounded','-','+','-','+','+'),
+  'ə':  V('mid central','-','+','-','-','-'),
+  'ɛ':  V('open-mid front unrounded','-','-','-','-','-'),
+  'œ':  V('open-mid front rounded','-','-','-','-','+'),
+  'ɜ':  V('open-mid central unrounded','-','+','-','-','-'),
+  'ɞ':  V('open-mid central rounded','-','+','-','-','+'),
+  'ʌ':  V('open-mid back unrounded','-','+','-','-','-'),
+  'ɔ':  V('open-mid back rounded','-','+','-','-','+'),
+  'æ':  V('near-open front unrounded','-','-','+','-','-'),
+  'ɐ':  V('near-open central','-','+','+','-','-'),
+  'a':  V('open front unrounded','-','-','+','-','-'),
+  'ɶ':  V('open front rounded','-','-','+','-','+'),
+  'ɑ':  V('open back unrounded','-','+','+','-','-'),
+  'ɒ':  V('open back rounded','-','+','+','-','+'),
+};
+
+// Fix V() call order — V was defined as (desc, high, back, low, atr, round)
+// Let me verify a few: i = high+, back-, low-, ATR+, round- ✓
+// u = high+, back+, low-, ATR+, round+ ✓
+// a = high-, back-, low+, ATR-, round- ✓
+
+// Keyboard layout
+const KEYBOARD_LAYOUT = [
+  { manner: 'Plosive', pairs: [
+    ['p','b'],['',''],['t','d'],['ʈ','ɖ'],['c','ɟ'],['k','ɡ'],['q','ɢ'],['',''],['ʔ','']
+  ]},
+  { manner: 'Nasal', pairs: [
+    ['','m'],['','ɱ'],['','n'],['','ɳ'],['','ɲ'],['','ŋ'],['','ɴ']
+  ]},
+  { manner: 'Trill', pairs: [
+    ['','ʙ'],['','r'],['','ʀ']
+  ]},
+  { manner: 'Tap/Flap', pairs: [
+    ['','ⱱ'],['','ɾ'],['','ɽ']
+  ]},
+  { manner: 'Fricative', pairs: [
+    ['ɸ','β'],['f','v'],['θ','ð'],['s','z'],['ʃ','ʒ'],['ʂ','ʐ'],['ç','ʝ'],['x','ɣ'],['χ','ʁ'],['ħ','ʕ'],['h','ɦ']
+  ]},
+  { manner: 'Lat. Fric.', pairs: [
+    ['ɬ','ɮ']
+  ]},
+  { manner: 'Approx.', pairs: [
+    ['','ʋ'],['','ɹ'],['','ɻ'],['','j'],['','ɰ'],['','w']
+  ]},
+  { manner: 'Lat. Approx.', pairs: [
+    ['','l'],['','ɭ'],['','ʎ'],['','ʟ']
+  ]},
+];
+
+// Vowel chart: rows = height, cols = [front-unrd, front-rd, central-unrd, central-rd, back-unrd, back-rd]
+const VOWEL_CHART = [
+  { label:'Close',      cells:[['i','y'], ['ɨ','ʉ'], ['ɯ','u']] },
+  { label:'Near-close', cells:[['ɪ','ʏ'], [null,null], [null,'ʊ']] },
+  { label:'Close-mid',  cells:[['e','ø'], [null,null], ['ɤ','o']] },
+  { label:'Mid',        cells:[[null,null], ['ə',null], [null,null]] },
+  { label:'Open-mid',   cells:[['ɛ','œ'], ['ɜ','ɞ'], ['ʌ','ɔ']] },
+  { label:'Near-open',  cells:[['æ',null], ['ɐ',null], [null,null]] },
+  { label:'Open',       cells:[[null,null], ['a','ɶ'], ['ɑ','ɒ']] },
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let selectedSymbols = [];
+let featureConstraints = {}; // feature -> '+' | '-' | null
+
+// ============================================================
+// RENDER KEYBOARD (Tab 1)
+// ============================================================
+function renderKeyboard() {
+  const kbEl = document.getElementById('consonant-keyboard');
+  KEYBOARD_LAYOUT.forEach(row => {
+    const div = document.createElement('div');
+    div.className = 'manner-row';
+    const label = document.createElement('span');
+    label.className = 'manner-label';
+    label.textContent = row.manner;
+    div.appendChild(label);
+    const grp = document.createElement('div');
+    grp.className = 'ipa-group';
+    row.pairs.forEach(([vl, vd]) => {
+      [vl, vd].forEach((sym, i) => {
+        if (sym) {
+          const btn = document.createElement('button');
+          btn.className = 'ipa-btn ipa';
+          btn.textContent = sym;
+          btn.title = IPA[sym]?.desc || sym;
+          btn.dataset.sym = sym;
+          btn.onclick = () => toggleSymbol(sym, btn);
+          grp.appendChild(btn);
+        } else {
+          const sp = document.createElement('span');
+          sp.style.cssText = 'display:inline-block;min-width:2.2rem;height:2.2rem';
+          grp.appendChild(sp);
+        }
+        if (i === 0) {
+          const gap = document.createElement('span');
+          gap.style.cssText = 'display:inline-block;width:2px';
+          grp.appendChild(gap);
+        }
+      });
+      const gap = document.createElement('span');
+      gap.style.cssText = 'display:inline-block;width:.4rem';
+      grp.appendChild(gap);
+    });
+    div.appendChild(grp);
+    kbEl.appendChild(div);
+  });
+
+  // Vowel chart as table
+  const vowelEl = document.getElementById('vowel-keyboard');
+  const vtable = document.createElement('table');
+  vtable.className = 'vowel-chart-table';
+  // Header row
+  const vhead = vtable.createTHead();
+  const vhr = vhead.insertRow();
+  ['', 'Front', '', 'Central', '', 'Back', ''].forEach((label, i) => {
+    const th = document.createElement('th');
+    th.textContent = label;
+    th.className = (label && i % 2 === 1) ? 'vcol-head' : (label === '' && i > 0 ? 'vcol-sub' : '');
+    if (i === 0) th.className = 'vrow-head';
+    vhr.appendChild(th);
+  });
+  // Body
+  const vbody = vtable.createTBody();
+  VOWEL_CHART.forEach(row => {
+    const tr = vbody.insertRow();
+    const tdLabel = tr.insertCell();
+    tdLabel.textContent = row.label;
+    tdLabel.className = 'vrow-head';
+    row.cells.forEach(([unrd, rnd]) => {
+      [unrd, rnd].forEach((sym, si) => {
+        const td = tr.insertCell();
+        td.className = si === 1 ? 'vcell vcell-rnd' : 'vcell vcell-unrd';
+        if (sym) {
+          const btn = document.createElement('button');
+          btn.className = 'ipa-btn ipa';
+          btn.textContent = sym;
+          btn.title = IPA[sym]?.desc || sym;
+          btn.dataset.sym = sym;
+          btn.onclick = () => toggleSymbol(sym, btn);
+          td.appendChild(btn);
+        }
+      });
+    });
+  });
+  // Legend
+  const vleg = document.createElement('div');
+  vleg.style.cssText = 'font-size:.72rem;color:#94a3b8;margin-top:.4rem';
+  vleg.textContent = 'Left = unrounded · Right = rounded';
+  vowelEl.appendChild(vtable);
+  vowelEl.appendChild(vleg);
+}
+
+function toggleSymbol(sym, btn) {
+  const idx = selectedSymbols.indexOf(sym);
+  if (idx === -1) {
+    selectedSymbols.push(sym);
+    btn.classList.add('selected');
+  } else {
+    selectedSymbols.splice(idx, 1);
+    btn.classList.remove('selected');
+  }
+  renderChips();
+}
+
+function renderChips() {
+  const el = document.getElementById('chips');
+  el.innerHTML = '';
+  if (selectedSymbols.length === 0) {
+    el.innerHTML = '<span class="chips-empty">Click symbols above to select them</span>';
+    document.getElementById('analyze-btn').disabled = true;
+    return;
+  }
+  document.getElementById('analyze-btn').disabled = false;
+  selectedSymbols.forEach(sym => {
+    const chip = document.createElement('span');
+    chip.className = 'chip ipa';
+    chip.innerHTML = `${sym} <span class="chip-x" onclick="removeSymbol('${sym}')">×</span>`;
+    el.appendChild(chip);
+  });
+}
+
+function removeSymbol(sym) {
+  const idx = selectedSymbols.indexOf(sym);
+  if (idx !== -1) selectedSymbols.splice(idx, 1);
+  // deselect button
+  document.querySelectorAll('.ipa-btn').forEach(btn => {
+    if (btn.dataset.sym === sym) btn.classList.remove('selected');
+  });
+  renderChips();
+}
+
+function clearAll() {
+  selectedSymbols = [];
+  document.querySelectorAll('.ipa-btn').forEach(btn => btn.classList.remove('selected'));
+  renderChips();
+  document.getElementById('results-card').style.display = 'none';
+}
+
+// ============================================================
+// MINIMAL FEATURES
+// ============================================================
+
+// Feature priority for tiebreaking in greedy: more linguistically meaningful features first
+const FEAT_PRIORITY = ['nasal','lateral','syllabic','consonantal','sonorant','continuant',
+  'labial','coronal','dorsal','pharyngeal_place','glottal_place','voice',
+  'anterior','distributed','high','low','back','strident','round','ATR',
+  'spread_glottis','constricted_glottis','delayed_release'];
+function featPri(f) { const i = FEAT_PRIORITY.indexOf(f); return i === -1 ? 99 : i; }
+
+// A feature distinguishes two symbols if their values differ (null vs '+' also counts as different)
+function distinguishes(vi, vj) { return vi !== vj; }
+
+function greedySetCover(pairsByFeat, uncovered) {
+  const needed = new Set();
+  uncovered = new Set(uncovered);
+  while (uncovered.size > 0) {
+    let best = null, bestCount = 0, bestPri = 99;
+    Object.keys(pairsByFeat).forEach(feat => {
+      if (needed.has(feat)) return;
+      const cnt = pairsByFeat[feat].filter(p => uncovered.has(p)).length;
+      const pri = featPri(feat);
+      if (cnt > bestCount || (cnt === bestCount && pri < bestPri)) {
+        best = feat; bestCount = cnt; bestPri = pri;
+      }
+    });
+    if (!best) break;
+    needed.add(best);
+    pairsByFeat[best].forEach(p => uncovered.delete(p));
+  }
+  return needed;
+}
+
+// For a single symbol: find minimum features to identify it from ALL other IPA symbols
+function findMinimalIdentifying(sym) {
+  const data = IPA[sym];
+  const others = Object.entries(IPA).filter(([s]) => s !== sym);
+
+  const pairsByFeat = {};
+  ALL_FEATURES.forEach(feat => {
+    const vi = data.f[feat] ?? null;
+    const covering = others
+      .filter(([, od]) => { const vj = od.f[feat] ?? null; return distinguishes(vi, vj); })
+      .map(([s]) => s);
+    if (covering.length > 0) pairsByFeat[feat] = covering;
+  });
+
+  const allDist = new Set(Object.values(pairsByFeat).flat());
+  const undistinguishable = others.filter(([s]) => !allDist.has(s)).map(([s]) => s);
+  const needed = greedySetCover(pairsByFeat, [...allDist]);
+  return { needed, undistinguishable };
+}
+
+// For multiple symbols: find minimum features to distinguish every pair
+function findMinimalDistinguishing(syms, data) {
+  if (syms.length < 2) return { needed: new Set(), undistinguishable: [] };
+
+  const pairs = [];
+  for (let i = 0; i < syms.length; i++)
+    for (let j = i+1; j < syms.length; j++)
+      pairs.push([i, j, `${syms[i]},${syms[j]}`]);
+
+  const pairsByFeat = {};
+  ALL_FEATURES.forEach(feat => {
+    const covering = pairs.filter(([i, j]) => {
+      const vi = data[i].f[feat] ?? null;
+      const vj = data[j].f[feat] ?? null;
+      return distinguishes(vi, vj);
+    }).map(([,,k]) => k);
+    if (covering.length > 0) pairsByFeat[feat] = covering;
+  });
+
+  const allCoverable = new Set(Object.values(pairsByFeat).flat());
+  const undistinguishable = pairs.filter(([,,k]) => !allCoverable.has(k)).map(([,,k]) => k);
+  const needed = greedySetCover(pairsByFeat,
+    pairs.filter(([,,k]) => allCoverable.has(k)).map(([,,k]) => k));
+
+  return { needed, undistinguishable };
+}
+
+// ============================================================
+// ANALYZE (Tab 1)
+// ============================================================
+function analyze() {
+  if (selectedSymbols.length === 0) return;
+  const card = document.getElementById('results-card');
+  card.style.display = 'block';
+  const table = document.getElementById('feature-table');
+  table.innerHTML = '';
+
+  const syms = selectedSymbols;
+  const data = syms.map(s => IPA[s]);
+  const multi = syms.length > 1;
+  const single = syms.length === 1;
+
+  const { needed: minFeats, undistinguishable } = multi
+    ? findMinimalDistinguishing(syms, data)
+    : findMinimalIdentifying(syms[0]);
+
+  const warn = document.getElementById('results-warning');
+  if (undistinguishable.length > 0) {
+    if (single) {
+      const symList = undistinguishable.map(s => `<span class="ipa">${s}</span>`).join(' ');
+      warn.innerHTML = `⚠ <b class="ipa">${syms[0]}</b> cannot be distinguished from: ${symList} — they share identical explicit feature values in this system.`;
+    } else {
+      warn.innerHTML = `⚠ The following pairs share identical explicit feature values and cannot be distinguished: <b>${undistinguishable.join(', ')}</b>`;
+    }
+    warn.style.display = 'block';
+  } else {
+    warn.style.display = 'none';
+  }
+
+  // Header
+  const thead = document.createElement('thead');
+  const hrow = document.createElement('tr');
+  const th0 = document.createElement('th');
+  th0.style.textAlign = 'left';
+  th0.textContent = 'Feature';
+  hrow.appendChild(th0);
+  syms.forEach(s => {
+    const th = document.createElement('th');
+    th.innerHTML = `<span class="sym-th ipa" title="${IPA[s]?.desc||''}">${s}</span>`;
+    hrow.appendChild(th);
+  });
+  {
+    const thS = document.createElement('th');
+    thS.innerHTML = `<span class="sum-th">${multi ? 'Status' : 'Identifies'}</span>`;
+    hrow.appendChild(thS);
+  }
+  thead.appendChild(hrow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+
+  FEATURE_GROUPS.forEach(group => {
+    const hasAny = group.features.some(feat =>
+      data.some(d => (d.f[feat] ?? null) !== null));
+    if (!hasAny) return;
+
+    const gr = document.createElement('tr');
+    gr.className = 'group-row';
+    const gd = document.createElement('td');
+    gd.colSpan = syms.length + 2; // always include Status column now
+    gd.textContent = group.name;
+    gr.appendChild(gd);
+    tbody.appendChild(gr);
+
+    group.features.forEach(feat => {
+      const vals = data.map(d => d.f[feat] ?? null);
+      if (vals.every(v => v === null)) return;
+
+      // Shared: ALL symbols have exactly same explicit value (no nulls)
+      const sharedPlus  = vals.every(v => v === '+');
+      const sharedMinus = vals.every(v => v === '-');
+      const isShared = sharedPlus || sharedMinus;
+      const isVariable = !isShared;
+      const isNecessary = minFeats.has(feat);
+
+      const tr = document.createElement('tr');
+      // For multi: style variable rows; for single: style all rows
+      if (multi && isVariable) {
+        tr.className = isNecessary ? 'feat-necessary' : 'feat-redundant';
+      } else if (single) {
+        tr.className = isNecessary ? 'feat-necessary' : 'feat-redundant';
+      }
+
+      const tdName = document.createElement('td');
+      let nameHTML = FEATURE_LABELS[feat];
+      const showBadge = (multi && isVariable) || single;
+      if (showBadge) {
+        nameHTML = isNecessary
+          ? `<span class="feat-star">★</span> ${nameHTML}`
+          : `<span class="feat-dot">○</span> ${nameHTML}`;
+      }
+      tdName.innerHTML = nameHTML;
+      tr.appendChild(tdName);
+
+      vals.forEach(v => {
+        const td = document.createElement('td');
+        td.innerHTML = fvBadge(v);
+        tr.appendChild(td);
+      });
+
+      // Always show Status column
+      const tdS = document.createElement('td');
+      if (multi && sharedPlus)       tdS.innerHTML = `<span class="fv fv-shared-plus">+</span>`;
+      else if (multi && sharedMinus) tdS.innerHTML = `<span class="fv fv-shared-minus">−</span>`;
+      else if (isNecessary)          tdS.innerHTML = `<span class="fv fv-needed">★</span>`;
+      else                           tdS.innerHTML = `<span class="fv fv-redundant">○</span>`;
+      tr.appendChild(tdS);
+
+      tbody.appendChild(tr);
+    });
+  });
+
+  table.appendChild(tbody);
+  card.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function fvBadge(v) {
+  if (v === null || v === undefined) return ''; // blank = not specified
+  if (v === '+') return `<span class="fv fv-plus">+</span>`;
+  if (v === '-') return `<span class="fv fv-minus">−</span>`;
+  return `<span class="fv">${v}</span>`;
+}
+
+// ============================================================
+// FEATURE SELECTOR (Tab 2)
+// ============================================================
+function renderFeatureSelector() {
+  const el = document.getElementById('feature-selector');
+  FEATURE_GROUPS.forEach(group => {
+    const sec = document.createElement('div');
+    sec.className = 'fgroup-section';
+    const lbl = document.createElement('div');
+    lbl.className = 'fgroup-label';
+    lbl.textContent = group.name;
+    sec.appendChild(lbl);
+    const grid = document.createElement('div');
+    grid.className = 'feature-grid';
+    group.features.forEach(feat => {
+      const row = document.createElement('div');
+      row.className = 'feature-row';
+      const name = document.createElement('span');
+      name.className = 'feature-name';
+      name.textContent = FEATURE_LABELS[feat];
+      row.appendChild(name);
+      const tg = document.createElement('div');
+      tg.className = 'toggle-group';
+      tg.id = `tg-${feat}`;
+      ['+', '-'].forEach(val => {
+        const btn = document.createElement('button');
+        btn.className = 'tg-btn';
+        btn.textContent = val === '+' ? '+' : '−';
+        btn.dataset.feat = feat;
+        btn.dataset.val = val;
+        btn.onclick = () => toggleFeature(feat, val, btn);
+        tg.appendChild(btn);
+      });
+      row.appendChild(tg);
+      grid.appendChild(row);
+    });
+    sec.appendChild(grid);
+    el.appendChild(sec);
+  });
+}
+
+function toggleFeature(feat, val, btn) {
+  const tg = document.getElementById(`tg-${feat}`);
+  const btns = tg.querySelectorAll('.tg-btn');
+  if (featureConstraints[feat] === val) {
+    // deselect
+    featureConstraints[feat] = null;
+    btns.forEach(b => { b.classList.remove('on-plus','on-minus'); });
+  } else {
+    featureConstraints[feat] = val;
+    btns.forEach(b => {
+      b.classList.remove('on-plus','on-minus');
+      if (b.dataset.val === val) {
+        b.classList.add(val === '+' ? 'on-plus' : 'on-minus');
+      }
+    });
+  }
+}
+
+function resetFeatures() {
+  featureConstraints = {};
+  document.querySelectorAll('.tg-btn').forEach(b => b.classList.remove('on-plus','on-minus'));
+  document.getElementById('ipa-results').innerHTML = '<span class="no-results">Set features and click "Find Matching IPA"</span>';
+  document.getElementById('result-count').textContent = '0';
+}
+
+function searchIPA() {
+  const constraints = Object.entries(featureConstraints).filter(([,v]) => v !== null);
+  const el = document.getElementById('ipa-results');
+  el.innerHTML = '';
+
+  const matches = Object.entries(IPA).filter(([sym, data]) => {
+    return constraints.every(([feat, val]) => {
+      const fval = data.f[feat];
+      return fval === val;
+    });
+  });
+
+  document.getElementById('result-count').textContent = matches.length;
+
+  if (matches.length === 0) {
+    el.innerHTML = '<span class="no-results">No symbols match the selected features</span>';
+    return;
+  }
+
+  // Sort: consonants first, then vowels
+  const consonants = matches.filter(([,d]) => d.type === 'consonant');
+  const vowels = matches.filter(([,d]) => d.type === 'vowel');
+
+  function makeSection(label, items) {
+    if (items.length === 0) return;
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'width:100%;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b;padding:.25rem 0;border-bottom:1px solid #e2e8f0;margin-bottom:.25rem';
+    hdr.textContent = label;
+    el.appendChild(hdr);
+    items.forEach(([sym, data]) => {
+      const div = document.createElement('div');
+      div.className = 'rsym';
+      div.innerHTML = `<span class="s ipa">${sym}</span><span class="d">${data.desc}</span>`;
+      div.title = data.desc;
+      div.onclick = () => {
+        // Switch to tab 1 and add this symbol
+        switchTab(0);
+        if (!selectedSymbols.includes(sym)) {
+          selectedSymbols.push(sym);
+          document.querySelectorAll('.ipa-btn').forEach(btn => {
+            if (btn.dataset.sym === sym) btn.classList.add('selected');
+          });
+          renderChips();
+        }
+      };
+      el.appendChild(div);
+    });
+  }
+
+  makeSection('Consonants', consonants);
+  makeSection('Vowels', vowels);
+}
+
+// ============================================================
+// TABS
+// ============================================================
+function switchTab(idx) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===idx));
+  document.querySelectorAll('.tab-content').forEach((c,i) => c.classList.toggle('active', i===idx));
+}
+
+// ============================================================
+// INIT
+// ============================================================
+renderKeyboard();
+renderFeatureSelector();
+</script>
+</body>
+</html>
