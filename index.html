@@ -645,32 +645,37 @@ function findMinimalIdentifying(sym) {
   return { needed, undistinguishable };
 }
 
-// For multiple symbols: find minimum features to distinguish every pair
+/// For multiple symbols: find minimum SHARED features that exclude all outsiders from the group
 function findMinimalDistinguishing(syms, data) {
   if (syms.length < 2) return { needed: new Set(), undistinguishable: [] };
 
-  const pairs = [];
-  for (let i = 0; i < syms.length; i++)
-    for (let j = i+1; j < syms.length; j++)
-      pairs.push([i, j, `${syms[i]},${syms[j]}`]);
-
-  const pairsByFeat = {};
+  // Collect shared feature values (all symbols have exactly the same explicit value)
+  const sharedVals = {};
   ALL_FEATURES.forEach(feat => {
-    const covering = pairs.filter(([i, j]) => {
-      const vi = data[i].f[feat] ?? null;
-      const vj = data[j].f[feat] ?? null;
-      return distinguishes(vi, vj);
-    }).map(([,,k]) => k);
+    const vals = data.map(d => d.f[feat] ?? null);
+    const first = vals[0];
+    if (first !== null && vals.every(v => v === first)) sharedVals[feat] = first;
+  });
+
+  // Outsiders: all IPA symbols not in the input set
+  const symSet = new Set(syms);
+  const outsiders = Object.entries(IPA).filter(([s]) => !symSet.has(s));
+
+  // For each shared feature, find outsiders it excludes (value differs from group's shared value)
+  const pairsByFeat = {};
+  Object.entries(sharedVals).forEach(([feat, sharedVal]) => {
+    const covering = outsiders
+      .filter(([, od]) => { const vj = od.f[feat] ?? null; return distinguishes(sharedVal, vj); })
+      .map(([s]) => s);
     if (covering.length > 0) pairsByFeat[feat] = covering;
   });
 
   const allCoverable = new Set(Object.values(pairsByFeat).flat());
-  const undistinguishable = pairs.filter(([,,k]) => !allCoverable.has(k)).map(([,,k]) => k);
-  const needed = greedySetCover(pairsByFeat,
-    pairs.filter(([,,k]) => allCoverable.has(k)).map(([,,k]) => k));
-
+  const undistinguishable = outsiders.filter(([s]) => !allCoverable.has(s)).map(([s]) => s);
+  const needed = greedySetCover(pairsByFeat, [...allCoverable]);
   return { needed, undistinguishable };
 }
+
 
 // ============================================================
 // ANALYZE (Tab 1)
@@ -697,7 +702,8 @@ function analyze() {
       const symList = undistinguishable.map(s => `<span class="ipa">${s}</span>`).join(' ');
       warn.innerHTML = `⚠ <b class="ipa">${syms[0]}</b> cannot be distinguished from: ${symList} — they share identical explicit feature values in this system.`;
     } else {
-      warn.innerHTML = `⚠ The following pairs share identical explicit feature values and cannot be distinguished: <b>${undistinguishable.join(', ')}</b>`;
+      const symList = undistinguishable.map(s => `<span class="ipa">${s}</span>`).join(' ');
+      warn.innerHTML = `⚠ The following sounds cannot be excluded from this group using shared features alone: ${symList}`;
     }
     warn.style.display = 'block';
   } else {
@@ -751,8 +757,8 @@ function analyze() {
       const isNecessary = minFeats.has(feat);
 
       const tr = document.createElement('tr');
-      // For multi: style variable rows; for single: style all rows
-      if (multi && isVariable) {
+      // For multi: style shared rows by necessity; for single: style all rows
+      if (multi && isShared) {
         tr.className = isNecessary ? 'feat-necessary' : 'feat-redundant';
       } else if (single) {
         tr.className = isNecessary ? 'feat-necessary' : 'feat-redundant';
@@ -760,7 +766,7 @@ function analyze() {
 
       const tdName = document.createElement('td');
       let nameHTML = FEATURE_LABELS[feat];
-      const showBadge = (multi && isVariable) || single;
+      const showBadge = (multi && isShared) || single;
       if (showBadge) {
         nameHTML = isNecessary
           ? `<span class="feat-star">★</span> ${nameHTML}`
@@ -777,10 +783,11 @@ function analyze() {
 
       // Always show Status column
       const tdS = document.createElement('td');
-      if (multi && sharedPlus)       tdS.innerHTML = `<span class="fv fv-shared-plus">+</span>`;
-      else if (multi && sharedMinus) tdS.innerHTML = `<span class="fv fv-shared-minus">−</span>`;
-      else if (isNecessary)          tdS.innerHTML = `<span class="fv fv-needed">★</span>`;
-      else                           tdS.innerHTML = `<span class="fv fv-redundant">○</span>`;
+      if (multi && isShared && isNecessary)  tdS.innerHTML = `<span class="fv fv-needed">★</span>`;
+      else if (multi && isShared)            tdS.innerHTML = `<span class="fv fv-redundant">○</span>`;
+      else if (multi && isVariable)          tdS.innerHTML = `<span class="fv fv-variable">~</span>`;
+      else if (isNecessary)                  tdS.innerHTML = `<span class="fv fv-needed">★</span>`;
+      else                                   tdS.innerHTML = `<span class="fv fv-redundant">○</span>`;
       tr.appendChild(tdS);
 
       tbody.appendChild(tr);
